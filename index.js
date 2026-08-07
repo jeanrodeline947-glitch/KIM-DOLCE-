@@ -11,54 +11,33 @@ const fs = require("fs");
 // Charger toutes les commandes
 const commands = new Map();
 
-if (fs.existsSync("./commandes")) {
-    const files = fs.readdirSync("./commandes").filter(f => f.endsWith(".js"));
+if (!msg.message) return;
 
-    for (const file of files) {
-        const command = require("./commandes/" + file);
+const body =
+    msg.message.conversation ||
+    msg.message.extendedTextMessage?.text ||
+    "";
 
-        if (command.name && typeof command.execute === "function") {
-            commands.set(command.name.toLowerCase(), command);
-            console.log("✅ Commande chargée :", command.name);
-        }
+const prefix = ".";
+
+if (!body.startsWith(prefix)) return;
+
+const args = body.slice(prefix.length).trim().split(/ +/);
+const cmd = args.shift().toLowerCase();
+
+if (commands.has(cmd)) {
+    try {
+        await commands.get(cmd).execute(sock, msg, args);
+    } catch (err) {
+        console.log(err);
+        await sock.sendMessage(msg.key.remoteJid, {
+            text: "❌ Une erreur est survenue."
+        });
     }
-                        }
+}
 
-async function startKimDolce() {
+});
 
-    const { state, saveCreds } = await useMultiFileAuthState("./session");
-    const { version } = await fetchLatestBaileysVersion();
+}
 
-    const sock = makeWASocket({
-        version,
-        auth: state,
-        printQRInTerminal: true,
-        logger: P({ level: "silent" })
-    });
-
-    sock.ev.on("creds.update", saveCreds);
-
-    sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
-
-        if (connection === "open") {
-            console.log("🤖 KIM DOLCE connecté !");
-        }
-
-        if (connection === "close") {
-
-            const shouldReconnect =
-                lastDisconnect?.error?.output?.statusCode !==
-                DisconnectReason.loggedOut;
-
-            if (shouldReconnect) {
-                startKimDolce();
-            }
-
-        }
-
-    });
-
-    sock.ev.on("messages.upsert", async ({ messages }) => {
-
-        const msg = messages[0];
-                
+startKimDolce();
