@@ -11,15 +11,18 @@ const fs = require("fs");
 // Charger toutes les commandes
 const commands = new Map();
 
-if (fs.existsSync("./commands")) {
-    const files = fs.readdirSync("./commands").filter(f => f.endsWith(".js"));
+if (fs.existsSync("./commandes")) {
+    const files = fs.readdirSync("./commandes").filter(f => f.endsWith(".js"));
 
     for (const file of files) {
-        const command = require("./commands/" + file);
-        commands.set(command.name, command);
-        console.log("✅ Commande chargée :", command.name);
+        const command = require("./commandes/" + file);
+
+        if (command.name && typeof command.execute === "function") {
+            commands.set(command.name.toLowerCase(), command);
+            console.log("✅ Commande chargée :", command.name);
+        }
     }
-}
+                        }
 
 async function startKimDolce() {
 
@@ -58,42 +61,4 @@ async function startKimDolce() {
     sock.ev.on("messages.upsert", async ({ messages }) => {
 
         const msg = messages[0];
-
-        if (!msg.message) return;
-
-        const body =
-            msg.message.conversation ||
-            msg.message.extendedTextMessage?.text ||
-            "";
-
-        const prefix = ".";
-
-        if (!body.startsWith(prefix)) return;
-
-        const args = body.slice(prefix.length).trim().split(/ +/);
-
-        const cmd = args.shift().toLowerCase();
-
-        if (commands.has(cmd)) {
-
-            try {
-
-                await commands.get(cmd).execute(sock, msg, args);
-
-            } catch (err) {
-
-                console.log(err);
-
-                await sock.sendMessage(msg.key.remoteJid, {
-                    text: "❌ Une erreur est survenue."
-                });
-
-            }
-
-        }
-
-    });
-
-}
-
-startKimDolce();
+                
